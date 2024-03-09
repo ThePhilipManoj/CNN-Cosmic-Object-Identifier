@@ -1,0 +1,127 @@
+import os
+import warnings
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.applications import VGG16
+from tensorflow import keras
+from tensorflow.keras import layers
+
+# Reproducibility
+def set_seed(seed=31415):
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+set_seed(31415)
+
+# Set Matplotlib defaults
+plt.rc('figure', autolayout=True)
+plt.rc('axes', labelweight='bold', labelsize='large',
+       titleweight='bold', titlesize=18, titlepad=10)
+plt.rc('image', cmap='magma')
+warnings.filterwarnings("ignore") # to clean up output cells
+
+# Load training and validation sets
+train_dir = 'C:/Users/Uhtred/Desktop/planets/test'      # Replace with the path to your dataset images to test
+valid_dir = 'C:/Users/Uhtred/Desktop/planets/valid'     # Replace with the path to your dataset images to validate
+
+print("Training directory:", train_dir)
+print("Validation directory:", valid_dir)
+
+ds_train_ = image_dataset_from_directory(
+    train_dir,
+    labels='inferred',
+    label_mode='categorical',
+    image_size=[128, 128],
+    interpolation='nearest',
+    batch_size=64,
+    shuffle=True,
+)
+ds_valid_ = image_dataset_from_directory(
+    valid_dir,
+    labels='inferred',
+    label_mode='categorical',
+    image_size=[128, 128],
+    interpolation='nearest',
+    batch_size=64,
+    shuffle=False,
+)
+
+# Data Pipeline
+def convert_to_float(image, label):
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    return image, label
+
+AUTOTUNE = tf.data.experimental.AUTOTUNE
+ds_train = (
+    ds_train_
+    .map(convert_to_float)
+    .cache()
+    .prefetch(buffer_size=AUTOTUNE)
+)
+ds_valid = (
+    ds_valid_
+    .map(convert_to_float)
+    .cache()
+    .prefetch(buffer_size=AUTOTUNE)
+)
+
+# Load the pre-trained VGG16 model without the top (classification) layer
+pretrained_base = VGG16(weights='imagenet', include_top=False, input_shape=(128,128,3))
+
+# Set the pre-trained base as non-trainable
+pretrained_base.trainable = False
+
+# Build the model
+model = keras.Sequential([
+    pretrained_base,
+    layers.Flatten(),
+    layers.Dense(256, activation='relu'),
+    layers.Dropout(0.5),
+    layers.Dense(8, activation='softmax')  # Change to match the number of classes
+])
+
+# Compile the model
+model.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',  
+    metrics=['accuracy']
+)
+
+# Train the model
+history = model.fit(
+    ds_train,
+    validation_data=ds_valid,
+    epochs=30,
+    verbose=1
+)
+# Define the class labels (planet names)
+class_labels = ['Earth', 'Jupiter', 'Mars', 'Mercury', 'Neptune', 'Saturn', 'Uranus', 'Venus']
+
+# Function to preprocess the image
+def preprocess_image(image_path):
+    image = tf.io.read_file(image_path)
+    image = tf.image.decode_jpeg(image, channels=3)
+    image = tf.image.resize(image, [128, 128])  # Resize to match the input size of the model
+    image = tf.cast(image, tf.float32) / 255.0  # Normalize pixel values
+    return image
+
+# Function to predict the class label for an image
+def predict_class(image_path):
+    # Preprocess the image
+    image = preprocess_image(image_path)
+    # Add batch dimension
+    image = tf.expand_dims(image, axis=0)
+    # Make prediction
+    predictions = model.predict(image)
+    # Get the predicted class label
+    predicted_class_index = tf.argmax(predictions[0]).numpy()
+    predicted_class = class_labels[predicted_class_index]
+    return predicted_class
+
+# Test the model on a new image
+image_path = 'C:/Users/Uhtred/Desktop/123.jpg'   # Replace with the path to your new image
+predicted_planet = predict_class(image_path)
+print("Predicted Planet:", predicted_planet)
