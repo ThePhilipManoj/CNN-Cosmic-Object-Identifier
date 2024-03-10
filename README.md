@@ -24,5 +24,7 @@ Special thanks to NexForce for the inspiration and support in completing this pr
 
 Reference:
 Roboflow Universe: https://universe.roboflow.com/planetdetectionmodel/planets-dataset/ - A collection of labeled planetary images used in training the CNN model.
+
 NASA Exoplanet Archive: https://exoplanetarchive.ipac.caltech.edu/ - A comprehensive database of exoplanet data, providing valuable information for cosmic object identification.
+
 ArXiv: https://arxiv.org/ - A repository of scientific papers in various disciplines, offering research papers on topics related to deep learning in astronomy and astrophysics.
